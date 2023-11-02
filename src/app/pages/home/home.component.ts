@@ -1,11 +1,7 @@
-import { Component, OnChanges, OnInit } from '@angular/core';
-import { FormControl, Validators } from '@angular/forms';
-
-interface Task {
-  id: number | string,
-  title: string,
-  completed: boolean
-}
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { TaskService } from 'src/app/services/task.service';
+import { Task } from 'src/models/task.model';
 
 @Component({
   selector: 'app-home',
@@ -14,51 +10,78 @@ interface Task {
 
 export class HomeComponent implements OnInit {
 
-  tasks: Task[] = [
-    {
-      id: "1",
-      title: "Test",
-      completed: true
-    }
-  ]
+  taskTitle: string = '';
+  tasks: Array<Task> = [];
+  currentRoute: string = '';
+  sub;
 
-  inputTask = new FormControl<string>('', {
-    validators: [Validators.required],
-    nonNullable: true
-  });
-
-  countTasks! : number
-
-  constructor() { }
-
-  ngOnInit(): void {
-    this.countTasks = this.getTotalTasks()
+  constructor(
+    private route: ActivatedRoute,
+    private taskSvc: TaskService) {
+    this.tasks = this.taskSvc.getTasks();
+    this.sub = this.route.url.subscribe(url => {
+      console.log("y entonces: ", url);
+      if (url.length === 0) {
+        this.currentRoute = 'all';
+        console.log(this.currentRoute);
+      } else {
+        this.currentRoute = url[0].path;
+      }
+      // console.log(url);
+      // this.currentRoute = url[0].path;
+      console.log(this.currentRoute);
+      this.filterTasks(this.currentRoute);
+    });
   }
 
-  addTask(event: any) {
-    const id = this.tasks.length + 1
-    const title = event.target.value
-    const completed = true
+  ngOnInit(): void { }
 
-    const newTask: Task = {
-      id,
-      title,
-      completed
-    }
-    this.tasks.push(newTask)
-    this.inputTask.setValue('')
+  addNewTask() {
+    this.taskSvc.addTask(this.taskTitle);
+    this.taskTitle = '';
   }
 
-  checkTasks() {
-
+  getPending() {
+    return this.taskSvc.pending;
   }
 
-  getTotalTasks(){
-    const taskCount = this.tasks.length
-    if (taskCount === 0){
-      return 0
+  getCompleted() {
+    return this.taskSvc.completed;
+  }
+
+  getTotal() {
+    return this.taskSvc.getTasks().length;
+  }
+
+  eraseCompleted() {
+    this.taskSvc.eraseCompleted();
+    this.filterTasks(this.currentRoute);
+  }
+
+  updateTasks() {
+    this.filterTasks(this.currentRoute);
+  }
+
+  filterTasks(filter: string) {
+    switch (filter) {
+      case 'all':
+        this.tasks = this.taskSvc.getTasks();
+        break;
+      case 'pending':
+        this.tasks = this.taskSvc.getTasks().filter(task => !task.completed);
+        console.log("estoy en peding", this.tasks);
+        break;
+      case 'completed':
+        this.tasks = this.taskSvc.getTasks().filter(task => task.completed);
+        break;
+      default:
+        this.tasks = this.taskSvc.getTasks();
+        break;
     }
-    return taskCount
+  }
+
+  ngOnDestroy() {
+    this.sub.unsubscribe();
   }
 
 }
